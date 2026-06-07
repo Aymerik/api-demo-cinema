@@ -9,7 +9,9 @@ async function seed(){
     await User.create({ email: 'admin@admin.fr', password: 'admin', firstname: 'Admin', lastname: 'User' });
     console.log('Admin user created: admin@admin.fr / admin');
   } else {
-    console.log('Admin already exists');
+    admin.password = 'admin';
+    await admin.save();
+    console.log('Admin already exists, password updated to default.');
   }
 
   const existingRooms = await Room.count();
