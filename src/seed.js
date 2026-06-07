@@ -1,8 +1,12 @@
 require('dotenv').config();
-const { sequelize, User, Room, Genre } = require('./models');
+const { sequelize, User, Room, Genre, Film, Session, Reservation } = require('./models');
 
 async function seed(){
   await sequelize.sync({ force: false });
+
+  await Reservation.destroy({ where: {} });
+  await Session.destroy({ where: {} });
+  await Film.destroy({ where: {} });
 
   const admin = await User.findOne({ where: { email: 'admin@admin.fr' } });
   if (!admin){
