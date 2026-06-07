@@ -155,6 +155,23 @@ components:
         seats: 2
         firstname: "Jean"
         lastname: "Dupont"
+        Session:
+          id: 1
+          filmId: 1
+          roomId: 1
+          startAt: "2026-06-01T20:30:00.000Z"
+          language: VO
+          Film:
+            id: 1
+            title: "Inception"
+            duration: 148
+            poster: "abcd1234.jpg"
+            synopsis: "A thief who steals corporate secrets..."
+            releaseDate: "2010-07-16"
+            minAge: 12
+            genres:
+              - id: 1
+                label: "Sci-Fi"
 paths:
   /auth/login:
     post:
@@ -474,7 +491,7 @@ paths:
         - bearerAuth: []
       responses:
         '200':
-          description: Array of reservations with session
+          description: Array of reservations with session and film
           content:
             application/json:
               schema:

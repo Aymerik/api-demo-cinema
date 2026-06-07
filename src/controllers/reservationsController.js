@@ -1,5 +1,5 @@
 const { Op } = require('sequelize');
-const { Reservation, Session, Room } = require('../models');
+const { Reservation, Session, Room, Film } = require('../models');
 
 async function validateReservation(sessionId, seats, excludeReservationId = null) {
   if (!sessionId || !seats) {
@@ -50,7 +50,7 @@ async function validateReservation(sessionId, seats, excludeReservationId = null
 
 exports.list = async (req, res) => {
   try {
-    const items = await Reservation.findAll({ include: [Session] });
+    const items = await Reservation.findAll({ include: [{ model: Session, include: [Film] }] });
 
     return res.json(items);
   } catch (err) {
