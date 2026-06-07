@@ -1,0 +1,597 @@
+openapi: 3.0.0
+info:
+  title: Cinema Back-office API
+  version: 1.0.0
+  description: API for cinema administration (users, films, rooms, sessions, reservations). JWT bearer auth required for all endpoints except login.
+servers:
+  - url: /api
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      example:
+        error: "Missing token"
+    AuthRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      example:
+        email: admin@example.com
+        password: secret
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+      example:
+        token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+        firstname:
+          type: string
+        lastname:
+          type: string
+      example:
+        id: 1
+        email: admin@example.com
+        firstname: Admin
+        lastname: Root
+    Room:
+      type: object
+      properties:
+        id:
+          type: integer
+        number:
+          type: string
+        capacity:
+          type: integer
+      example:
+        id: 1
+        number: "1"
+        capacity: 120
+    Genre:
+      type: object
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+      example:
+        id: 1
+        label: "Action"
+    Film:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        duration:
+          type: integer
+          description: duration in minutes
+        poster:
+          type: string
+          description: filename available under /uploads
+        synopsis:
+          type: string
+        releaseDate:
+          type: string
+          format: date
+        minAge:
+          type: integer
+        genres:
+          type: array
+          items:
+            $ref: '#/components/schemas/Genre'
+      example:
+        id: 1
+        title: "Inception"
+        duration: 148
+        poster: "abcd1234.jpg"
+        synopsis: "A thief who steals corporate secrets..."
+        releaseDate: "2010-07-16"
+        minAge: 12
+        genres: [{ id: 1, label: "Sci-Fi" }]
+    Session:
+      type: object
+      properties:
+        id:
+          type: integer
+        filmId:
+          type: integer
+        roomId:
+          type: integer
+        startAt:
+          type: string
+          format: date-time
+        language:
+          type: string
+          enum: [VO, VF]
+        Film:
+          $ref: '#/components/schemas/Film'
+        Room:
+          $ref: '#/components/schemas/Room'
+      example:
+        id: 1
+        filmId: 1
+        roomId: 1
+        startAt: "2026-06-01T20:30:00.000Z"
+        language: VO
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: integer
+        sessionId:
+          type: integer
+        seats:
+          type: integer
+        firstname:
+          type: string
+        lastname:
+          type: string
+        Session:
+          $ref: '#/components/schemas/Session'
+      example:
+        id: 1
+        sessionId: 1
+        seats: 2
+        firstname: "Jean"
+        lastname: "Dupont"
+paths:
+  /auth/login:
+    post:
+      summary: Authenticate and obtain a JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Missing credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users:
+    get:
+      summary: List users (protected)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a user (protected)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+                firstname:
+                  type: string
+                lastname:
+                  type: string
+      responses:
+        '200':
+          description: Created user id and email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  email:
+                    type: string
+        '400':
+          description: Missing fields or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/{id}:
+    delete:
+      summary: Delete a user (protected)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: deletion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/me:
+    get:
+      summary: Get current user (protected)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /users/me/password:
+    put:
+      summary: Change current user's password (protected)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, password]
+              properties:
+                oldPassword:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '400':
+          description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid password or token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /genres:
+    get:
+      summary: List genres (protected)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of genres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Genre'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /rooms:
+    get:
+      summary: List rooms (protected)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Room'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /films:
+    get:
+      summary: List films (protected)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of films with genres
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Film'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a film with optional poster upload (protected)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, duration]
+              properties:
+                title:
+                  type: string
+                duration:
+                  type: integer
+                synopsis:
+                  type: string
+                releaseDate:
+                  type: string
+                  format: date
+                minAge:
+                  type: integer
+                genreIds:
+                  description: JSON array of genre ids or multiple form fields named genreIds
+                  type: string
+                poster:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Created film
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Film'
+        '400':
+          description: Missing fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /sessions:
+    get:
+      summary: List sessions (protected)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of sessions with film and room
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a session (protected)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filmId, roomId, startAt, language]
+              properties:
+                filmId:
+                  type: integer
+                roomId:
+                  type: integer
+                startAt:
+                  type: string
+                  format: date-time
+                language:
+                  type: string
+                  enum: [VO, VF]
+      responses:
+        '200':
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          description: Validation error (past date, room conflict, missing fields)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Film or room not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /reservations:
+    get:
+      summary: List reservations (protected)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of reservations with session
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reservation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Create a reservation (protected)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sessionId, seats, firstname, lastname]
+              properties:
+                sessionId:
+                  type: integer
+                seats:
+                  type: integer
+                firstname:
+                  type: string
+                lastname:
+                  type: string
+      responses:
+        '200':
+          description: Created reservation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Validation error (insufficient seats, past session, missing fields)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /reservations/{id}:
+    put:
+      summary: Update a reservation (protected)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: integer
+                seats:
+                  type: integer
+                firstname:
+                  type: string
+                lastname:
+                  type: string
+      responses:
+        '200':
+          description: Updated reservation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Reservation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      summary: Delete a reservation (protected)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: deletion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
